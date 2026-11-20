@@ -5,6 +5,15 @@
 **Status**: Draft
 **Input**: User description: "Document upload and management feature for ContosoDashboard, derived from StakeholderDocs/document-upload-and-management-feature.md"
 
+## Clarifications
+
+### Session 2026-11-20
+
+- Q: How much authority should Team Leads have over documents uploaded by their team members? → A: View, download, edit metadata, replace files, and delete documents uploaded by current team members.
+- Q: When a user is removed from a shared team or project, or the document owner removes a share, should that person lose access immediately? → A: Explicit shares and project or team access end immediately when the share or membership ends.
+- Q: What should happen to documents when their associated project is deleted or becomes inactive? → A: Deleting a project deletes its associated files; making a project inactive preserves the files and existing authorization.
+- Q: How long should document activity records be retained? → A: 180 days.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Upload and Organize a Document (Priority: P1)
@@ -118,8 +127,11 @@ Users receive notifications for project additions and shares, while administrato
 - How are password-protected, corrupted, or unreadable Office or PDF files handled?
 - How does the system behave when the malware scan is unavailable or returns an inconclusive result?
 - What happens if a project is deleted or a project team membership changes after documents are uploaded?
+- If a project is deleted, its associated files are permanently deleted; if a project becomes inactive, its documents are preserved and existing authorization remains in effect.
 - How does access change when a user is removed from a team or project?
+- When team or project membership ends, access to documents ends immediately except for rights granted independently by another valid role or project relationship.
 - How are documents handled if a recipient is removed from a share?
+- When a document owner removes a share, the recipient loses access immediately.
 - What happens if metadata is invalid or a required category is missing during upload or edit?
 - How does the system present storage capacity or disk-write failures?
 - How are very long titles, descriptions, tags, or filenames handled?
@@ -161,12 +173,15 @@ Users receive notifications for project additions and shares, while administrato
 - **FR-030**: The system MUST add a Recent Documents widget showing the user's five most recently uploaded documents.
 - **FR-031**: The system MUST include document counts in the dashboard summary.
 - **FR-032**: The system MUST notify project members in-app when a document is added to one of their projects.
-- **FR-033**: The system MUST log document uploads, downloads, deletions, shares, metadata changes, and file replacements with actor and time.
+- **FR-033**: The system MUST log document uploads, downloads, deletions, shares, metadata changes, and file replacements with actor and time, and retain activity records for 180 days.
 - **FR-034**: The system MUST allow administrators to report on uploaded document types, active uploaders, and document access patterns.
 - **FR-035**: The system MUST enforce role, ownership, project membership, and explicit sharing permissions for every document operation.
 - **FR-036**: The system MUST not expose any unauthorized document metadata or file content through direct links or search results.
 - **FR-037**: The system MUST keep core document workflows available without internet or cloud services.
 - **FR-038**: The system MUST support future migration of file storage without changing user-facing document workflows.
+- **FR-039**: Team Leads MUST be able to view, download, edit metadata, replace files, and delete documents uploaded by current members of their team.
+- **FR-040**: The system MUST revoke document access immediately when an owner removes a share or a user's team or project membership ends, unless another valid authorization relationship still applies.
+- **FR-041**: When a project is deleted, the system MUST permanently delete its associated document files; when a project becomes inactive, the system MUST preserve the documents and their existing authorization.
 
 ### Key Entities *(include if feature involves data)*
 
