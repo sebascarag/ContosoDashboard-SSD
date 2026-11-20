@@ -135,3 +135,53 @@ function Test-DirHasFiles {
     }
 }
 
+function Resolve-Template {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$TemplateName,
+        [Parameter(Mandatory=$true)]
+        [string]$RepoRoot
+    )
+
+    $candidates = @(
+        (Join-Path $RepoRoot ".specify/templates/overrides/$TemplateName.md"),
+        (Join-Path $RepoRoot ".specify/templates/$TemplateName.md")
+    )
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return (Resolve-Path -LiteralPath $candidate).Path
+        }
+    }
+
+    return $null
+}
+
+function Resolve-TemplateContent {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$TemplateName,
+        [Parameter(Mandatory=$true)]
+        [string]$RepoRoot
+    )
+
+    $templatePath = Resolve-Template -TemplateName $TemplateName -RepoRoot $RepoRoot
+    if ($templatePath) {
+        return Get-Content -LiteralPath $templatePath -Raw
+    }
+
+    return $null
+}
+
+function ConvertTo-AsciiJson {
+    param(
+        [Parameter(ValueFromPipeline=$true)]
+        $InputObject
+    )
+
+    process {
+        $json = $InputObject | ConvertTo-Json -Compress
+        [Regex]::Replace($json, '[^\x20-\x7E]', { param($match) '\u{0:X4}' -f [int][char]$match.Value })
+    }
+}
+
