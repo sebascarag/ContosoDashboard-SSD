@@ -13,6 +13,7 @@
 - Q: When a user is removed from a shared team or project, or the document owner removes a share, should that person lose access immediately? → A: Explicit shares and project or team access end immediately when the share or membership ends.
 - Q: What should happen to documents when their associated project is deleted or becomes inactive? → A: Deleting a project deletes its associated files; making a project inactive preserves the files and existing authorization.
 - Q: How long should document activity records be retained? → A: 180 days.
+- Q: When a project becomes inactive, may users continue uploading and changing documents, or may they only view and download existing documents? → A: Inactive projects preserve documents for view and download only.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -126,8 +127,7 @@ Users receive notifications for project additions and shares, while administrato
 - What happens when the same upload is submitted repeatedly, including browser retry or repeated confirmation?
 - How are password-protected, corrupted, or unreadable Office or PDF files handled?
 - How does the system behave when the malware scan is unavailable or returns an inconclusive result?
-- What happens if a project is deleted or a project team membership changes after documents are uploaded?
-- If a project is deleted, its associated files are permanently deleted; if a project becomes inactive, its documents are preserved and existing authorization remains in effect.
+- If a project is deleted, its associated files are permanently deleted; if a project becomes inactive, its documents are preserved and remain viewable and downloadable only under existing authorization. Uploads, metadata changes, file replacements, sharing, and deletion are unavailable until the project is reactivated.
 - How does access change when a user is removed from a team or project?
 - When team or project membership ends, access to documents ends immediately except for rights granted independently by another valid role or project relationship.
 - How are documents handled if a recipient is removed from a share?
@@ -181,7 +181,7 @@ Users receive notifications for project additions and shares, while administrato
 - **FR-038**: The system MUST support future migration of file storage without changing user-facing document workflows.
 - **FR-039**: Team Leads MUST be able to view, download, edit metadata, replace files, and delete documents uploaded by current members of their team.
 - **FR-040**: The system MUST revoke document access immediately when an owner removes a share or a user's team or project membership ends, unless another valid authorization relationship still applies.
-- **FR-041**: When a project is deleted, the system MUST permanently delete its associated document files; when a project becomes inactive, the system MUST preserve the documents and their existing authorization.
+- **FR-041**: When a project is deleted, the system MUST permanently delete its associated document files; when a project becomes inactive, the system MUST preserve the documents and existing authorization while allowing only view and download operations until the project is reactivated.
 
 ### Key Entities *(include if feature involves data)*
 
