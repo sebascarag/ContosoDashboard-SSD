@@ -10,6 +10,7 @@ The central metadata record for a stored file.
 | `Title` | string | Required; maximum 255 characters |
 | `Description` | string | Optional; maximum 2000 characters |
 | `Category` | string | Required; one of the six predefined categories |
+| `Tags` | string | Optional custom tags |
 | `ProjectId` | integer | Optional foreign key to Project |
 | `UploadedByUserId` | integer | Required foreign key to User |
 | `UploadedAt` | datetime | Automatically set at successful upload |
