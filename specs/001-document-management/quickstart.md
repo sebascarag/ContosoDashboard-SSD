@@ -85,4 +85,5 @@ Expected:
 
 Expected:
 - Every successful or denied relevant action needed by the audit design is traceable to actor and time.
-- Activity records remain available for 180 days.
+- Records dated within the last 180 days remain available.
+- Records older than 180 days are absent after startup, scheduled, or report-before-query cleanup.

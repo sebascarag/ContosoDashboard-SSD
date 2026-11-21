@@ -29,6 +29,19 @@ Implement centralized document upload, browsing, preview, download, metadata mai
 | Replaceable infrastructure | Pass | `IFileStorageService` supports local and future cloud implementations |
 | Verifiable changes | Pass | Contract and quickstart validation cover upload, access, sharing, project lifecycle, and audit behavior |
 
+### Document Activity Retention
+
+Add a local, bounded retention process that keeps document activity for 180 days only:
+
+- Store every retained activity with `OccurredAt` in UTC.
+- Calculate the cutoff once per cleanup run as `UTC now minus 180 days`.
+- Delete all document activity records with `OccurredAt < cutoff`.
+- Run cleanup once when the application starts and then once every 24 hours while it remains running.
+- Also execute cleanup before generating an administrator activity report, preventing stale records from being visible.
+- Process deletions in bounded batches to avoid long database transactions.
+- Log the cleanup run's cutoff and deleted-record count for operational verification.
+- Do not delete document files or document metadata as part of this process.
+
 ## Project Structure
 
 ### Documentation (this feature)

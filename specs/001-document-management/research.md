@@ -79,3 +79,10 @@
 
 **Alternatives considered**:
 - Indefinite retention: rejected because it is unbounded.
+
+**Implementation process**:
+- Run one cleanup pass at application startup.
+- Run subsequent cleanup passes every 24 hours.
+- Delete in bounded batches where `OccurredAt < UTC now minus 180 days`.
+- Run the same cleanup before generating an administrator activity report.
+- Record cutoff and deleted count in application logs.

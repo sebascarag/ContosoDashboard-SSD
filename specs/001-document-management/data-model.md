@@ -73,7 +73,9 @@ An immutable audit record for document actions.
 | `Success` | boolean | Whether authorization and processing succeeded |
 
 Retention:
-- Purge records after 180 days.
+- Keep records only while `OccurredAt >= UTC now minus 180 days`.
+- Records older than the cutoff are deleted by the scheduled and report-before-query cleanup process.
+- Activity cleanup must not affect documents, shares, tasks, projects, or notification records.
 
 ## Existing Entity Relationships
 
