@@ -1,0 +1,375 @@
+@page "/documents"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using ContosoDashboard.Models
+@using ContosoDashboard.Services
+@attribute [Authorize]
+@inject IDocumentService DocumentService
+@inject IProjectService ProjectService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<Documents> Logger
+
+<PageTitle>My Documents - ContosoDashboard</PageTitle>
+
+<div class="container-fluid">
+    <h1 class="mb-3">My Documents</h1>
+
+    <div class="alert alert-warning" role="alert">
+        Training limitation: the offline file check validates file type and structure; it is not antivirus software.
+        Do not treat uploaded files as malware-scanned.
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="alert alert-success" role="status">@successMessage</div>
+    }
+
+    <section class="card mb-4" aria-labelledby="upload-heading">
+        <div class="card-header">
+            <h2 id="upload-heading" class="h5 mb-0">Upload documents</h2>
+        </div>
+        <div class="card-body">
+            <form @onsubmit="UploadAsync" @onsubmit:preventDefault>
+                <div class="mb-3">
+                    <label class="form-label" for="document-files">Select one or more files</label>
+                    <InputFile id="document-files"
+                               OnChange="OnFilesSelected"
+                               multiple
+                               disabled="@isUploading" />
+                </div>
+
+                @if (uploadItems.Count > 0)
+                {
+                    <div class="mb-3">
+                        <div class="form-label">Document titles</div>
+                        @foreach (var item in uploadItems)
+                        {
+                            <div class="input-group mb-2" @key="item">
+                                <span class="input-group-text text-truncate" style="max-width: 40%;" title="@item.FileName">
+                                    @item.FileName
+                                </span>
+                                <InputText class="form-control"
+                                           aria-label="Document title"
+                                           @bind-Value="item.Title"
+                                           disabled="@isUploading" />
+                            </div>
+                        }
+                    </div>
+                }
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="document-category">Category <span aria-hidden="true">*</span></label>
+                        <select id="document-category" class="form-select" @bind="category" disabled="@isUploading">
+                            <option value="">Select a category</option>
+                            @foreach (var item in DocumentUploadPolicy.Categories)
+                            {
+                                <option value="@item">@item</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="document-project">Project</label>
+                        <select id="document-project" class="form-select" @bind="selectedProjectId" disabled="@isUploading">
+                            <option value="">Personal</option>
+                            @foreach (var project in projects)
+                            {
+                                <option value="@project.ProjectId">@project.Name</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="document-description">Description</label>
+                    <textarea id="document-description"
+                              class="form-control"
+                              rows="2"
+                              maxlength="2000"
+                              @bind="description"
+                              disabled="@isUploading"></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="document-tags">Tags</label>
+                    <input id="document-tags"
+                           class="form-control"
+                           @bind="tags"
+                           disabled="@isUploading" />
+                </div>
+
+                @if (isUploading)
+                {
+                    <div class="mb-3">
+                        <label class="form-label" for="upload-progress">Upload progress</label>
+                        <progress id="upload-progress" class="w-100" max="100" value="@uploadProgress">
+                            @uploadProgress%
+                        </progress>
+                        <div class="small text-muted">@uploadProgress% complete</div>
+                    </div>
+                }
+
+                <button type="submit" class="btn btn-primary" disabled="@(isUploading || uploadItems.Count == 0)">
+                    @(isUploading ? "Uploading..." : "Upload")
+                </button>
+            </form>
+        </div>
+    </section>
+
+    @if (documents is null)
+    {
+        <p><em>Loading documents...</em></p>
+    }
+    else if (documents.Count == 0)
+    {
+        <div class="alert alert-info">You have not uploaded any documents yet.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th scope="col">Title</th>
+                        <th scope="col">Category</th>
+                        <th scope="col">Upload date</th>
+                        <th scope="col">File size</th>
+                        <th scope="col">Project</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var document in documents)
+                    {
+                        <tr>
+                            <td>@document.Title</td>
+                            <td>@document.Category</td>
+                            <td>@document.UploadedAt.ToLocalTime().ToString("g")</td>
+                            <td>@FormatFileSize(document.FileSizeBytes)</td>
+                            <td>@(document.Project?.Name ?? "Personal")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private const int MaxFilesPerSelection = int.MaxValue;
+    private readonly List<UploadItem> uploadItems = [];
+    private List<Project> projects = [];
+    private List<Document>? documents;
+    private int requestingUserId;
+    private string category = string.Empty;
+    private string description = string.Empty;
+    private string tags = string.Empty;
+    private string selectedProjectId = string.Empty;
+    private string? errorMessage;
+    private string? successMessage;
+    private bool isUploading;
+    private int uploadProgress;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdClaim = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdClaim, out requestingUserId) || requestingUserId <= 0)
+        {
+            errorMessage = "Your signed-in user could not be verified. Please sign in again.";
+            documents = [];
+            return;
+        }
+
+        projects = await ProjectService.GetUserProjectsAsync(requestingUserId);
+        documents = await DocumentService.GetMyDocumentsAsync(requestingUserId);
+    }
+
+    private void OnFilesSelected(InputFileChangeEventArgs eventArgs)
+    {
+        errorMessage = null;
+        successMessage = null;
+        uploadItems.Clear();
+
+        foreach (var file in eventArgs.GetMultipleFiles(MaxFilesPerSelection))
+        {
+            uploadItems.Add(new UploadItem(file));
+        }
+    }
+
+    private async Task UploadAsync()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        if (requestingUserId <= 0)
+        {
+            errorMessage = "Your signed-in user could not be verified. Please sign in again.";
+            return;
+        }
+
+        if (uploadItems.Count == 0 || uploadItems.Any(item => item.File is null))
+        {
+            errorMessage = "Select at least one file to upload.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            errorMessage = "Select a document category.";
+            return;
+        }
+
+        if (uploadItems.Any(item => string.IsNullOrWhiteSpace(item.Title)))
+        {
+            errorMessage = "Enter a title for each selected document.";
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(selectedProjectId) && !int.TryParse(selectedProjectId, out _))
+        {
+            errorMessage = "Select a valid project.";
+            return;
+        }
+
+        var projectId = int.TryParse(selectedProjectId, out var parsedProjectId) ? parsedProjectId : (int?)null;
+        var totalBytes = Math.Max(1L, uploadItems.Sum(item => item.Size));
+        long completedBytes = 0;
+        var completedCount = 0;
+        string? currentFileName = null;
+        isUploading = true;
+        uploadProgress = 0;
+
+        try
+        {
+            foreach (var item in uploadItems.ToList())
+            {
+                var browserFile = item.File
+                    ?? throw new InvalidOperationException("The selected file reference is no longer available.");
+                var fileName = browserFile.Name;
+                currentFileName = fileName;
+                var fileSize = browserFile.Size;
+                var contentType = browserFile.ContentType;
+                if (fileSize > DocumentUploadPolicy.MaxFileSizeBytes)
+                {
+                    throw new DocumentUploadException($"{fileName} exceeds the 25 MB per-file limit.");
+                }
+
+                using var memoryStream = new MemoryStream();
+                await using (var browserStream = browserFile.OpenReadStream(DocumentUploadPolicy.MaxFileSizeBytes))
+                {
+                    var buffer = new byte[81920];
+                    long copiedBytes = 0;
+                    int bytesRead;
+                    while ((bytesRead = await browserStream.ReadAsync(buffer)) > 0)
+                    {
+                        copiedBytes += bytesRead;
+                        if (copiedBytes > DocumentUploadPolicy.MaxFileSizeBytes)
+                        {
+                            throw new DocumentUploadException($"{fileName} exceeds the 25 MB per-file limit.");
+                        }
+
+                        await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                        uploadProgress = (int)Math.Min(100, (completedBytes + copiedBytes) * 100 / totalBytes);
+                        await InvokeAsync(StateHasChanged);
+                    }
+                }
+
+                item.File = null;
+                await InvokeAsync(StateHasChanged);
+                memoryStream.Position = 0;
+
+                await DocumentService.UploadAsync(
+                    memoryStream,
+                    fileName,
+                    contentType,
+                    new DocumentUploadMetadata(item.Title.Trim(), description, category, tags, projectId),
+                    requestingUserId);
+
+                uploadItems.Remove(item);
+                completedBytes += fileSize;
+                completedCount++;
+                currentFileName = null;
+                uploadProgress = (int)Math.Min(100, completedBytes * 100 / totalBytes);
+                await InvokeAsync(StateHasChanged);
+            }
+
+            documents = await DocumentService.GetMyDocumentsAsync(requestingUserId);
+            successMessage = completedCount == 1
+                ? "Document uploaded successfully."
+                : $"{completedCount} documents uploaded successfully.";
+            uploadItems.Clear();
+            description = string.Empty;
+            tags = string.Empty;
+            category = string.Empty;
+            selectedProjectId = string.Empty;
+            uploadProgress = 100;
+        }
+        catch (DocumentUploadException exception)
+        {
+            errorMessage = FormatPartialFailure(completedCount, currentFileName, exception.Message);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            Logger.LogWarning(exception, "Document upload was denied for user {UserId}.", requestingUserId);
+            errorMessage = FormatPartialFailure(
+                completedCount,
+                currentFileName,
+                "You are not authorized to upload a document to the selected project.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Document upload failed for user {UserId}.", requestingUserId);
+            errorMessage = FormatPartialFailure(
+                completedCount,
+                currentFileName,
+                "The upload failed because of a storage or database error.");
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    private static string FormatFileSize(long sizeBytes)
+    {
+        return sizeBytes switch
+        {
+            < 1024 => $"{sizeBytes} B",
+            < 1024 * 1024 => $"{sizeBytes / 1024d:0.#} KB",
+            _ => $"{sizeBytes / (1024d * 1024d):0.#} MB"
+        };
+    }
+
+    private static string FormatPartialFailure(int completedCount, string? failedFileName, string message)
+    {
+        var partialResult = completedCount > 0
+            ? $"{completedCount} file(s) uploaded successfully before the failure. "
+            : string.Empty;
+        var failedFile = string.IsNullOrWhiteSpace(failedFileName)
+            ? string.Empty
+            : $"File: {failedFileName}. ";
+        return $"{partialResult}{failedFile}{message} Reselect any file that did not finish before retrying.";
+    }
+
+    private sealed class UploadItem
+    {
+        public UploadItem(IBrowserFile file)
+        {
+            File = file;
+            FileName = file.Name;
+            Size = file.Size;
+            Title = Path.GetFileNameWithoutExtension(file.Name);
+        }
+
+        public IBrowserFile? File { get; set; }
+        public string FileName { get; }
+        public long Size { get; }
+        public string Title { get; set; }
+    }
+}
