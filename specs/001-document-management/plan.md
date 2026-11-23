@@ -42,6 +42,12 @@ Add a local, bounded retention process that keeps document activity for 180 days
 - Log the cleanup run's cutoff and deleted-record count for operational verification.
 - Do not delete document files or document metadata as part of this process.
 
+### Existing Database Schema Initialization
+
+The MVP implementation uses `Database.EnsureCreated()` and the repository has no checked-in EF Core migration baseline. Because `EnsureCreated()` does not add newly modeled entities to an existing database, startup also invokes `ContosoDashboard/Data/DocumentSchemaInitializer.cs`. Its idempotent SQL Server DDL adds the `Documents` and `DocumentActivityLogs` tables, their foreign keys, and missing indexes without dropping or rewriting existing data. On a fresh database, `EnsureCreated()` creates the complete current model and the initializer is a no-op.
+
+This is a compatibility measure for the MVP, not a versioned migration strategy. Phase 4 in `tasks.md` tracks the follow-up: create an EF Core baseline for the complete current schema, define a safe adoption/stamping procedure for databases already initialized with `EnsureCreated()`, then replace `EnsureCreated()` and this initializer with `Database.Migrate()`. Validate both a fresh database and an existing populated database before completing that work. Subsequent tasks that change the EF model must add and apply migrations.
+
 ## Project Structure
 
 ### Documentation (this feature)
@@ -62,6 +68,8 @@ specs/001-document-management/
 ContosoDashboard/
 ├── Data/
 │   └── ApplicationDbContext.cs
+├── Migrations/
+│   └── initial schema baseline and subsequent EF Core migrations
 ├── Models/
 │   ├── Document.cs
 │   ├── DocumentShare.cs
